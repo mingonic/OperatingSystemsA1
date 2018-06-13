@@ -31,34 +31,34 @@ int main (void)
 {
      char *args[MAX_LINE/2 +1]; /* command line arguments */
      int should_run = 1; /* flag to determine when to exit program */
-
+     int i = 0;
      while (should_run) {
           printf("CSCI3120>");
 
           fflush(stdout);
           char temp[MAX_LINE/2 +1];
           char *token;
-          int i = 0;
 
-          scanf("%s\n", temp);
+          scanf("%[^\n\r]", temp);
+          printf("%s\n", temp);
           if (strcmp(temp,"exit") == 0) {
+               printf("\n Said to Exit");
                should_run = 0;
           }
           else {
             token = strtok((char *)temp, " ");
-            while( token != NULL ){
-                //printf("------------------\n");
-                args[i] = token;
-                i = i + 1;
-                // printf( "%s\n", token);
-                token = strtok(NULL, " ");
-            }
-            int j = 0;
-            while (j < i){
-                printf(args[j]);
-                j = j + 1;
-            }
-            printf("\n");
+            printf("%s", token);
+            // printf("\n %s", token);
+            // while( token != NULL ){
+            //     //printf("------------------\n");
+            //     args[i] = token;
+            //     i = i + 1;
+            //     // printf( "%s\n", token);
+            //     token = strtok(NULL, " ");
+            // }
+			
+			printf("\n");
+
 
             /**
              *After reading user input, the steps are:
