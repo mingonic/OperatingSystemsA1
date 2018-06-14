@@ -5,7 +5,10 @@
 #include <stdlib.h>
 
 #define MAX_LINE 80 /* The maximum length command */
+#define HISTORY_SIZE 11
 
+static char * history[HISTORY_SIZE];
+static int count = 0;
 
 //the function    https://stackoverflow.com/questions/38211864/dynamically-read-user-input-strings-in-c
 char* scan(char *string)
@@ -25,6 +28,27 @@ char* scan(char *string)
     return string;
 }
 
+static void add_to_histry(const char * cmd)
+{
+  if(count == (HISTORY_SIZE-1))
+  {
+    int i;
+    free(history[0]);
+    for(i=1; i < count; i++)
+      history[i-1] = history[i];
+    count--;
+  }
+  history[count++] = strdup(cmd);
+}
+
+static void list_history()
+{
+  int i;
+  for(i = count-1; i >=0; i--){
+    printf("%i %s\n", i+1, history[i]);
+  }
+}
+
 int main (void)
 {
     char *args[MAX_LINE/2 +1]; /* command line arguments */
@@ -35,16 +59,23 @@ int main (void)
         fflush(stdout);
 
         char *token;
-        char *temp;
+        char *s1;
+        char *s2;
+        int flag = 1;
         int i = 0;
         
-        temp = scan(temp);
-        token = strtok(temp, " ");
+        s1 = scan(s1);
+        s2 = strdup(s1);
+        token = strtok(s1, " ");
 
         if (strcmp(token,"exit") == 0) {
             should_run = 0;
         }
+        else if(strcmp(token,"history") ==0) {
+            list_history();
+        }
         else {
+            add_to_histry(s2);
             while (token != NULL)
             {
                 // printf("%s\n", token);
@@ -52,9 +83,29 @@ int main (void)
                 token = strtok (NULL, " ");
                 i++;
             }
-            //set last value in array to null
-            args[i] = NULL;
-            i++;
+            // Checks whether it contains ampersand. If so, changes flag value and replaces ampersand with NULL to mark end
+            if (strcmp(args[i-1], "&") == 0) {
+                flag = 0;
+                //set last value in array to null
+                args[i-1] = NULL;
+            } else {
+                //set last value in array to null
+                args[i] = NULL;
+            }
+
+            pid_t pid;
+
+            pid = fork();
+
+            if (pid == 0) // Child process
+            {
+                execvp(args[0], args);
+            }
+            else if (pid > 0) // Parent process
+            {
+                if (flag)
+                    wait(NULL);
+            }
         }
 
         // // code to print out stuff
@@ -65,21 +116,8 @@ int main (void)
         // }
         // printf("%s\n", args[i-2]);
 
-        pid_t pid;
-
-        pid = fork();
-
-        if (pid == 0) // Child process
-        {
-            execvp(args[0], args);
-        }
-        else if (pid > 0) // Parent process
-        {
-            if (strcmp(args[i-2], "&") == 0)
-                wait(NULL);
-        }
-        free(temp);
-
+        free(s1);
+        free(s2);
         /**
             *After reading user input, the steps are:
             *(1) fork a child process using fork()
@@ -89,3 +127,4 @@ int main (void)
    }
    return 0;
 }
+
