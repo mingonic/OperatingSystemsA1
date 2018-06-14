@@ -3,48 +3,51 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
-
+ 
 #define MAX_LINE 80 /* The maximum length command */
-#define HISTORY_SIZE 11
+#define HISTORY_SIZE 11 /* THe maximum length of history is 10. It is set to 11 to account for the 0 */
 
-static char * history[HISTORY_SIZE];
-static int count = 0;
+static char * history[HISTORY_SIZE]; /* All commands stored in history */
+static int count = 0; /* Keeps track of every command that has gone through history */
 
-//the function    https://stackoverflow.com/questions/38211864/dynamically-read-user-input-strings-in-c
-char* scan(char *string)
+//Custom scan function that dynamically allocates memory based on user input
+char* scan(char *s)
 {
-    int c; //as getchar() returns `int`
-    string = malloc(sizeof(char)); //allocating memory
+    int ch;
+    // allocates memory to string and setting null character
+    s = malloc(sizeof(char));
+    s[0]='\0';
 
-    string[0]='\0';
-
-    for(int i=0; i<41 && (c=getchar())!='\n' && c != EOF ; i++)
+    // loops running until end of file reached or new line
+    for(int i=0; i<41 && (ch=getchar())!='\n' && ch != EOF ; i++)
     {
-        string = realloc(string, (i+2)*sizeof(char)); //reallocating memory
-        string[i] = (char) c; //type casting `int` to `char`
-        string[i+1] = '\0'; //inserting null character at the end
+        // reallocating memory, making the int a char and setting null char at the end
+        s = realloc(s, (i+2)*sizeof(char)); 
+        s[i] = (char) ch; 
+        s[i+1] = '\0';
     }
 
-    return string;
+    return s;
 }
 
+/* Function that lists last 10 items in history when called */
 static void list_history()
 {
-  int i;
-  int j;
-  int left;
-  if (count < 10) {
-      left = 10-count;
-  }
-  else {
-      left = 0;
-  }
-  i = count-1;
+    int i;
+    int j;
+    int left;
+    if (count < 10) {
+        left = 10-count;
+    }
+    else {
+        left = 0;
+    }
+    i = count-1;
 
-  for(j = left; j < 10; j++){
-    printf("%i %s\n", i+1, history[i]);
-    i--;
-  }
+    for(j = left; j < 10; j++){
+        printf("%i %s\n", i+1, history[i]);
+        i--;
+    }
 }
 
 int main (void)
@@ -59,63 +62,86 @@ int main (void)
         char *token;
         char *position;
         char *s1;
-        char *s1_copy;
         char *s2;
+        char *s3;
         char h;
         int flag = 1;
         int error = 1;
         int i = 0;
         
+        // Scanning user input into string s1 using custom scan function
         s1 = scan(s1);
-        s1_copy = strdup(s1);
+        // Making copies of string s1 for later usage
         s2 = strdup(s1);
-        h = s2[0];
+        s3 = strdup(s1);
+        // Getting first char of the inputted string, used to check in 2nd technique below
+        h = s3[0];
+        // Tokenizing string, seperating by whitespace
         token = strtok(s1, " "); 
 
+        /* If user enters exit, then program should not run */
         if (strcmp(token,"exit") == 0) {
             should_run = 0;
         }
+        /* If user enters history, then it should call list history function */
         else if(strcmp(token,"history") == 0) {
-            list_history();
+            //Error check
+            if (count == 0) {
+                printf("%s\n", "No commands in history");
+                error = 0;
+            }
+            else {
+                list_history();
+            }
         }
         else {
+            /* 1st technique to retrieve and execute most recent command */
             if (strcmp(token, "!!") == 0) {
+                //Error check
                 if (count == 0) {
                     printf("%s\n", "No commands in history");
                     error = 0;
                 } else {
+                    // Retrives most recent command and tokenizes it before executing 
                     s1 = strdup(history[count-1]);
-                    s1_copy = strdup(s1);
+                    s2 = strdup(s1);
                     printf("%s\n", s1);
                     token = strtok(s1, " ");
                 }
             }
+            /* 2nd technique to retrieve and execute a specified command from the history */
             else {
                 if (h == '!') {
-                    position = strtok(s2, "!");
+                    position = strtok(s3, "!");
+                    // Using atoi function to convert from string to integer
                     int num = atoi(position);
+                    // Retrives a specific command within bounds of history and tokenizes it before executing
                     if (num <= count && num > 0 && num > count-10) {
                         s1 = strdup(history[num-1]);
-                        s1_copy = strdup(s1);
+                        s2 = strdup(s1);
                         printf("%s\n", s1);
                         token = strtok(s1, " ");
                     } else {
+                        //Error check
                         printf("%s\n", "No such command in history");
                         error = 0;
                     }
                 }
             }
 
+            /* Error handling, this section would not execute with error */
             if (error) {
-                history[count++] = strdup(s1_copy);
+                // Add commands to history
+                history[count++] = strdup(s2);
+                /* adds next tokens in commands to the args array */
                 while (token != NULL)
                 {
-                    // printf("%s\n", token);
                     args[i] = token;
                     token = strtok (NULL, " ");
                     i++;
                 }
-                // Checks whether it contains ampersand. If so, changes flag value and replaces ampersand with NULL to mark end
+                /* Checks whether it contains ampersand.*/
+                /* If so, changes flag value and replaces ampersand with NULL to mark end*/
                 if (strcmp(args[i-1], "&") == 0) {
                     flag = 0;
                     //set last value in array to null
@@ -125,8 +151,8 @@ int main (void)
                     args[i] = NULL;
                 }
 
+                /* Process creation and execution */
                 pid_t pid;
-
                 pid = fork();
 
                 if (pid == 0) // Child process
@@ -135,28 +161,17 @@ int main (void)
                 }
                 else if (pid > 0) // Parent process
                 {
+                    //flag to check if ampersand is in the command
                     if (flag)
                         wait(NULL);
                 }
             }
         }
 
-        // // code to print out stuff
-        // int j = 0;
-        // while (j < i) {
-        //     printf("%s\n", args[j]);
-        //     j++;
-        // }
-        // printf("%s\n", args[i-2]);
-
+        // Deallocating memory
         free(s1);
-        free(s1_copy);
-        /**
-            *After reading user input, the steps are:
-            *(1) fork a child process using fork()
-            *(2) the child process will invoke execvp()
-            *(3) if command included &, parent will invoke wait()
-            */
+        free(s2);
+        free(s3);
    }
    return 0;
 }
